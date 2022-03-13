@@ -8,7 +8,7 @@
 
 ***
 
-This a little guide how to deploy and setting [Percona Monitoring and Management (PMM)](https://www.percona.com/doc/percona-monitoring-and-management/index.html) in docker-compose.<br>
+This a little guide how to deploy and setting [Percona Monitoring and Management (PMM) 2.x](https://www.percona.com/doc/percona-monitoring-and-management/2.x/index.html) in docker-compose.<br>
 Percona Monitoring and Management (PMM) is an open-source platform for managing and monitoring MySQL and MongoDB performance.<br> 
 It is developed by Percona in collaboration with experts in the field of managed database services, support and consulting.
 <br>
@@ -18,34 +18,21 @@ PMM is a free and open-source solution that you can run in your own environment 
 ## GETTING A PMM SERVER RUNNING ON DOCKER IS JUST MATTER OF FOLLOWING A FEW SIMPLE STEPS.
 If you just run the docker-compose file it will not work correctly due to incorrect container initialization, therefore:
 <br>
-- the first step that you will need to do create the ```pmm-data container``` with default values: 
-```c
-docker create \
-   -v /opt/prometheus/data \
-   -v /opt/consul-data \
-   -v /var/lib/mysql \
-   -v /var/lib/grafana \
-   --name pmm-data \
-   percona/pmm-server:latest /bin/true
-```
-- the second step is create and start ```pmm-server container``` to initialize the data directory correctly:
+- the first step is create and start ```pmm-server container``` to initialize the /srv/ directory correctly:
 ```c
 docker run -d \
-  -p 81:80 \
+  -p 80:80 -p 443:443 \
   --volumes-from pmm-data \
   --name pmm-server \
   --restart always \
-  percona/pmm-server:latest
+  percona/pmm-server:2
 ```
 ##
-- the next step you need stop and remove ```pmm-server container```:
+- the next step you need stop ```pmm-server container```:
 ```
 root@host:~# docker stop pmm-server_container
 ```
 
-```
-root@host:~# docker rm pmm-server_container
-```
 ##
 - after that you should сopy volumes files from ```pmm-data container``` to your host:
 <br>
