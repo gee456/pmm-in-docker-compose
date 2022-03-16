@@ -22,7 +22,6 @@ If you just run the docker-compose file it will not work correctly due to incorr
 ```c
 docker run -d \
   -p 80:80 -p 443:443 \
-  --volumes-from pmm-data \
   --name pmm-server \
   --restart always \
   percona/pmm-server:2
@@ -33,35 +32,60 @@ docker run -d \
 root@host:~# docker stop pmm-server_container
 ```
 
+## 
+- Now you neeed to make sure the proper accounts exists on the host. PMM 2 uses various named accounts for different applications
+
+ids and gids
+grafana 998 996
+postgres 26  26
+pmm 1000 1000
+
+```
+groupadd pmm -g 1000
+adduser pmm -u 1000 -g pmm
+chown pmm:pmm /data/pmm -R
+groupadd postgres -g 26
+useradd postgres -u 26 -g postgres
+# uncomment the steps below if chrony is not using ID 998
+#groupadd grafana -g 996
+#useradd grafana -u 998 -g chrony
+```
+
 ##
-- after that you should сopy volumes files from ```pmm-data container``` to your host:
+- choose your data folder and create it and prep it with base permissions
+
+```
+datafolder=/data/pmm
+mkdir $datafolder
+chown -R pmm:pmm $datafolder
+```
+
+##
+- сopy data from  ```pmm-server container``` to your host data folder and setup rights.
 <br>
 
-> copy prometheus data:
+```
+datafolder=/data/pmm
+docker cp pmm-server:/srv $datafolder/
+mv /data/pmm/srv/* /data/pmm/
+for newdir in alertmanager clickhouse prometheus victoriametrics
+do
+    chown -R pmm:pmm $datafolder/$newdir
+done
+for newdir in ia logs nginx
+do
+    chown -R root:root $datafolder/$newdir
+done
+chown -R chrony:chrony $datafolder/grafana
+chown -R postgres:postgres $datafolder/postgres
+chown -R root:root $datafolder/clickhouse
+```
 
-```
-root@host:~# docker cp id_pmm-data_container:/opt/prometheus/ /your/prometheus/data/on/host
-```
-> copy consul data:
-
-```
-root@host:~# docker cp id_pmm-data_container:/opt/consul-data/ /your/consul/data/on/host
-```
-> copy mysql data:
-
-```
-root@host:~# docker cp id_pmm-data_container:/var/lib/mysql /your/mysql/data/on/host
-```
-> copy grafana data:
-
-```
-root@host:~# docker cp id_pmm-data_container:/var/lib/grafana /your/grafana/data/on/host
-```
 ##
-- after that you need delete ```pmm-data container```:
+- after that you need delete ```pmm-server container```:
 
 ```
-root@host:~# docker rm pmm-data_container
+root@host:~# docker rm pmm-server_container
 ```
 ##
 - the last step you need to specify you hosts volumes for pmm-data in docker-compose file as show below: 
@@ -71,16 +95,13 @@ version: '2'
 services:
   pmm-data:
     image: percona/pmm-server:latest
-    container_name: pmm-data
+    container_name: pmm-server
     volumes:
-      - /your/host/prometheus/data:/opt/prometheus/data
-      - /your/host/consul-data:/opt/consul-data
-      - /your/host/mysql:/var/lib/mysql
-      - /your/host/grafana:/var/lib/grafana
+      - /your/host/data:/srv
     entrypoint: /bin/true
 ```
 
--  after that just to run next command for launch new correct initialized ```pmm-server & pmm-data containers``` in docker-compose:
+-  after that just to run next command for launch new correct initialized ```pmm-server container``` in docker-compose:
 ```
 root@host:~# docker-compose up -d
 ```
